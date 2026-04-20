@@ -351,6 +351,12 @@ function App() {
         todayMystery={dayInfo.mystery}
         todayLabel={dayInfo.label}
       />
+      {showTweaks && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+          onClick={() => setShowTweaks(false)}
+        />
+      )}
       <window.TweaksPanel
         visible={showTweaks}
         material={material}

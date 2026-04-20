@@ -17,7 +17,6 @@ function Candle({ visible }) {
 window.Candle = Candle;
 
 function TweaksPanel({ visible, material, onMaterial, nightMode, onNight, bellOn, onBell, aveAudioOn, onAveAudio, count, onResetCount }) {
-  const [collapsed, setCollapsed] = React.useState(false);
   if (!visible) return null;
   const materials = [
     { key: 'madeira', label: 'Madeira', swatch: 'linear-gradient(135deg, #6b4423, #1a0f07)' },
@@ -27,15 +26,10 @@ function TweaksPanel({ visible, material, onMaterial, nightMode, onNight, bellOn
     { key: 'metal', label: 'Ouro envelhecido', swatch: 'linear-gradient(135deg, #f4d789, #4a3410)' }
   ];
   return (
-    <div className={`tweaks ${collapsed ? 'collapsed' : ''}`}>
+    <div className="tweaks">
       <div className="tweaks-title">
         <span>Ajustes</span>
-        <button className="tweaks-toggle" onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expandir' : 'Recolher'}>
-          {collapsed ? '▴' : '▾'}
-        </button>
       </div>
-      {!collapsed && (
-      <>
       <div className="tweaks-section">
         <div className="tweaks-label">Material das contas</div>
         <div className="material-grid">
@@ -74,8 +68,6 @@ function TweaksPanel({ visible, material, onMaterial, nightMode, onNight, bellOn
           <button className="counter-reset" onClick={onResetCount}>zerar</button>
         </div>
       </div>
-      </>
-      )}
     </div>
   );
 }
