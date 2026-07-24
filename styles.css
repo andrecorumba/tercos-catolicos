@@ -504,83 +504,88 @@ body {
   padding: 28px 40px;
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .panel-body::-webkit-scrollbar { width: 8px; }
 .panel-body::-webkit-scrollbar-thumb { background: rgba(168, 130, 52, 0.3); border-radius: 4px; }
 
 .prayer-block {
-  margin-bottom: 28px;
   animation: fade-in 0.5s ease;
-}
-
-.prayer-block + .prayer-block {
-  padding-top: 24px;
-  border-top: 1px solid rgba(168, 130, 52, 0.25);
 }
 
 .prayer-title {
   font-family: 'Cinzel', serif;
-  font-size: 12px;
+  font-size: clamp(13px, 1.9vh, 17px);
   letter-spacing: 0.28em;
   color: var(--gold);
   text-transform: uppercase;
   font-weight: 600;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
+/* Letra grande, escalada pelo comprimento da oração para caber sem rolagem */
 .prayer-text {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 19px;
-  line-height: 1.55;
+  font-size: clamp(22px, 3.4vh, 34px);
+  line-height: 1.45;
   color: var(--ink);
   text-wrap: pretty;
 }
 
+.prayer-text.len-short { font-size: clamp(27px, 4.4vh, 44px); line-height: 1.4; }
+.prayer-text.len-medium { font-size: clamp(22px, 3.4vh, 34px); line-height: 1.45; }
+.prayer-text.len-long { font-size: clamp(18px, 2.5vh, 26px); line-height: 1.4; }
+
 .prayer-text::first-letter {
   font-family: 'Cinzel', serif;
-  font-size: 30px;
+  font-size: 1.55em;
   color: var(--wine);
   padding-right: 2px;
 }
 
+.step-count {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
 .mystery-header {
-  margin-bottom: 28px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid rgba(168, 130, 52, 0.3);
+  animation: fade-in 0.5s ease;
 }
 
 .mystery-tag {
   font-family: 'Cinzel', serif;
-  font-size: 11px;
+  font-size: clamp(12px, 1.8vh, 16px);
   letter-spacing: 0.3em;
   color: var(--wine);
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .mystery-title {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 28px;
+  font-size: clamp(30px, 4.6vh, 46px);
   font-weight: 600;
   color: var(--ink);
   line-height: 1.15;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   text-wrap: balance;
 }
 
 .mystery-ref {
   font-family: 'EB Garamond', serif;
   font-style: italic;
-  font-size: 14px;
+  font-size: clamp(16px, 2.2vh, 20px);
   color: var(--ink-soft);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .mystery-reflection {
   font-family: 'EB Garamond', serif;
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: clamp(19px, 2.7vh, 26px);
+  line-height: 1.5;
   color: var(--ink-soft);
   font-style: italic;
   text-wrap: pretty;
@@ -949,17 +954,6 @@ body {
 
 .counter-reset:hover { opacity: 1; color: var(--gold-bright); }
 
-@media (max-width: 1000px) {
-  .app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 45vh 55vh;
-  }
-  .panel-header { padding: 20px 24px 14px; }
-  .panel-body { padding: 18px 24px; }
-  .panel-footer { padding: 14px 24px 10px; }
-  .tweaks { width: calc(100% - 40px); right: 20px; bottom: 10px; }
-  .candle { left: 20px; bottom: 20px; transform: scale(0.7); transform-origin: bottom left; }
-}
 
 
 .audio-btn {
@@ -995,10 +989,6 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(212, 120, 60, 0); }
 }
 .audio-label { line-height: 1; }
-@media (max-width: 720px) {
-  .audio-label { display: none; }
-  .audio-btn { padding: 10px; }
-}
 
 
 .autoplay-btn {
@@ -1042,9 +1032,6 @@ body {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.9; }
 }
-@media (max-width: 720px) {
-  .autoplay-btn { top: 58px; padding: 10px; }
-}
 
 .settings-btn {
   position: absolute;
@@ -1068,4 +1055,57 @@ body {
 }
 .settings-btn:hover { background: rgba(20, 14, 10, 0.75); border-color: rgba(212, 168, 87, 0.6); }
 .settings-btn.on { background: rgba(107, 36, 35, 0.55); border-color: rgba(212, 168, 87, 0.6); color: #f4ead5; }
-@media (max-width: 720px) { .settings-btn { top: 102px; padding: 10px; } }
+
+/* ============ CELULAR: sem imagem do terço, oração grande em tela cheia ============ */
+@media (max-width: 1000px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+  }
+  /* O terço vira apenas uma barra fina no topo (a imagem cobria metade da tela) */
+  .rosary-stage {
+    height: 58px;
+    flex: none;
+    overflow: visible;
+    z-index: 10;
+  }
+  .rosary-svg, .candle, .stage-counter, .stage-sub { display: none; }
+  .stage-header {
+    top: 50%;
+    transform: translateY(-50%);
+    left: 16px;
+  }
+  .stage-title { font-size: 15px; margin-bottom: 0; letter-spacing: 0.22em; }
+
+  /* Botões alinhados em linha na barra do topo */
+  .audio-btn, .autoplay-btn, .settings-btn {
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 10px;
+  }
+  .audio-label { display: none; }
+  .settings-btn { right: 12px; }
+  .autoplay-btn { right: 58px; }
+  .audio-btn { right: 104px; }
+
+  .panel {
+    flex: 1;
+    min-height: 0;
+    border-left: none;
+    border-top: 1px solid #0a0503;
+  }
+  .panel-header { padding: 12px 20px 10px; }
+  .panel-eyebrow { font-size: 11px; margin-bottom: 2px; }
+  .panel-sub { font-size: 16px; }
+  .decade-progress { padding: 10px 20px; }
+  .decade-progress-label { font-size: 10px; margin-bottom: 6px; }
+  .decade-dot { height: 8px; }
+  .panel-body { padding: 16px 20px; }
+
+  /* Botões de navegação maiores para toque */
+  .panel-footer { padding: 12px 16px 10px; gap: 10px; }
+  .nav-btn { padding: 16px 14px; font-size: 13px; width: 100%; }
+  .restart-btn { padding: 4px 20px 10px; }
+
+  .tweaks { width: calc(100% - 40px); right: 20px; bottom: 10px; }
+}

@@ -4,6 +4,7 @@ function PrayerPanel({
   currentBead,
   beads,
   currentId,
+  stepIdx,
   onPrev,
   onNext,
   onRestart,
@@ -17,72 +18,44 @@ function PrayerPanel({
   const prayers = window.PRAYERS;
   const mysteries = window.MYSTERIES;
 
-  // Determinar que oração exibir
-  let content = null;
-
   if (!currentBead) return null;
 
-  // Caso especial: crucifixo -> mostrar sinal da cruz + oferecimento + credo
-  if (currentBead.type === 'cross') {
-    content = (
-      <>
-        <PrayerBlock title="Sinal da Cruz" text={prayers.sinalCruz.text} />
-        <PrayerBlock title="Oferecimento" text={prayers.ofertaInicial.text} />
-        <PrayerBlock title="Credo" text={prayers.credo.text} />
-      </>
-    );
-  } else if (currentBead.type === 'medal') {
-    // Medalha: Glória ao final do pendente + anúncio do mistério
-    const mystery = mysteries[selectedMystery];
-    content = (
-      <>
-        <PrayerBlock title="Glória" text={prayers.gloria.text} />
-        {mysteryReady ? (
-          <div className="mystery-announce">
-            <div className="mystery-label">Agora iniciamos os</div>
-            <div className="mystery-name">{mystery.name}</div>
-            <div className="mystery-day">{mystery.days}</div>
-          </div>
-        ) : (
-          <MysteryPicker selected={selectedMystery} onSelect={onSelectMystery} onConfirm={onStartMysteries} todayMystery={todayMystery} todayLabel={todayLabel} />
-        )}
-      </>
-    );
-  } else if (currentBead.type === 'pater') {
-    const mystery = mysteries[selectedMystery];
-    const decadeIdx = currentBead.decade ?? 0;
-    const mList = mystery.list[decadeIdx];
-    content = (
-      <>
-        {mList && (
-          <div className="mystery-header">
-            <div className="mystery-tag">{mList.num} mistério · {mystery.name.replace('Mistérios ', '')}</div>
-            <h2 className="mystery-title">{mList.title}</h2>
-            <div className="mystery-ref">{mList.ref}</div>
-            <p className="mystery-reflection">{mList.reflection}</p>
-          </div>
-        )}
-        <PrayerBlock title="Pai-Nosso" text={prayers.paiNosso.text} />
-      </>
-    );
-  } else if (currentBead.type === 'ave') {
-    const mystery = mysteries[selectedMystery];
-    const decadeIdx = currentBead.decade ?? 0;
-    const idxInDec = currentBead.indexInDecade || 0;
-    const isLast = idxInDec === 10;
+  const steps = window.stepsForBead(currentBead);
+  const step = steps[Math.min(stepIdx, steps.length - 1)];
 
-    content = (
-      <>
-        <PrayerBlock title={`Ave-Maria ${idxInDec} de 10`} text={prayers.aveMaria.text} />
-        {isLast && (
-          <>
-            <PrayerBlock title="Glória" text={prayers.gloria.text} />
-            <PrayerBlock title="Oração de Fátima" text={prayers.fatima.text} />
-            {decadeIdx === 4 && <PrayerBlock title="Salve Rainha" text={prayers.salveRainha.text} />}
-          </>
-        )}
-      </>
-    );
+  // Um único conteúdo (oração OU mistério) por slide
+  let content = null;
+  if (step) {
+    if (step.kind === 'prayer') {
+      const p = prayers[step.key];
+      let title = p.title;
+      if (step.key === 'aveMaria' && currentBead.type === 'ave' && currentBead.indexInDecade > 0) {
+        title = `Ave-Maria ${currentBead.indexInDecade} de 10`;
+      }
+      content = <PrayerBlock title={title} text={p.text} />;
+    } else if (step.kind === 'mystery') {
+      const mystery = mysteries[selectedMystery];
+      const mList = mystery && mystery.list[step.decade];
+      content = mList ? (
+        <div className="mystery-header">
+          <div className="mystery-tag">{mList.num} mistério · {mystery.name.replace('Mistérios ', '')}</div>
+          <h2 className="mystery-title">{mList.title}</h2>
+          <div className="mystery-ref">{mList.ref}</div>
+          <p className="mystery-reflection">{mList.reflection}</p>
+        </div>
+      ) : null;
+    } else if (step.kind === 'medalChoice') {
+      const mystery = mysteries[selectedMystery];
+      content = mysteryReady ? (
+        <div className="mystery-announce">
+          <div className="mystery-label">Agora iniciamos os</div>
+          <div className="mystery-name">{mystery.name}</div>
+          <div className="mystery-day">{mystery.days}</div>
+        </div>
+      ) : (
+        <MysteryPicker selected={selectedMystery} onSelect={onSelectMystery} onConfirm={onStartMysteries} todayMystery={todayMystery} todayLabel={todayLabel} />
+      );
+    }
   }
 
   // Progresso da dezena
@@ -93,6 +66,8 @@ function PrayerPanel({
   // Posição global
   const position = beads.findIndex(b => b.id === currentId);
   const total = beads.length;
+  const atStart = position === 0 && stepIdx === 0;
+  const atEnd = position === total - 1 && stepIdx >= steps.length - 1;
 
   return (
     <div className="panel">
@@ -100,6 +75,7 @@ function PrayerPanel({
         <div className="panel-eyebrow">Santo Terço {todayMystery && <span className="today-chip">{todayLabel} · {mysteries[todayMystery].name.replace('Mistérios ', '')}</span>}</div>
         <div className="panel-sub">
           {currentBead.label}
+          {steps.length > 1 && <span className="step-count"> · {Math.min(stepIdx, steps.length - 1) + 1}/{steps.length}</span>}
         </div>
       </div>
 
@@ -124,7 +100,7 @@ function PrayerPanel({
       </div>
 
       <div className="panel-footer">
-        <button className="nav-btn" onClick={onPrev} disabled={position === 0}>
+        <button className="nav-btn" onClick={onPrev} disabled={atStart}>
           <span>←</span> Anterior
         </button>
         <div className="position">
@@ -132,7 +108,7 @@ function PrayerPanel({
           <span className="position-sep">/</span>
           <span className="position-total">{total}</span>
         </div>
-        <button className="nav-btn primary" onClick={onNext} disabled={position === total - 1}>
+        <button className="nav-btn primary" onClick={onNext} disabled={atEnd}>
           Próxima <span>→</span>
         </button>
       </div>
@@ -142,10 +118,13 @@ function PrayerPanel({
 }
 
 function PrayerBlock({ title, text }) {
+  // Tamanho da letra conforme o comprimento: orações curtas ganham letra bem maior
+  const len = text.length;
+  const size = len > 400 ? 'len-long' : len > 200 ? 'len-medium' : 'len-short';
   return (
     <div className="prayer-block">
       <h3 className="prayer-title">{title}</h3>
-      <p className="prayer-text">{text}</p>
+      <p className={`prayer-text ${size}`}>{text}</p>
     </div>
   );
 }

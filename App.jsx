@@ -18,6 +18,7 @@ function App() {
   })();
 
   const [currentId, setCurrentId] = React.useState(saved.currentId ?? 0);
+  const [stepIdx, setStepIdx] = React.useState(saved.stepIdx ?? 0);
   const [selectedMystery, setSelectedMystery] = React.useState(saved.selectedMystery ?? defaultMystery);
   const [mysteryReady, setMysteryReady] = React.useState(saved.mysteryReady ?? false);
   const [material, setMaterial] = React.useState(saved.material ?? 'madeira');
@@ -29,12 +30,26 @@ function App() {
   const [started, setStarted] = React.useState(false);
   const [autoPlay, setAutoPlay] = React.useState(false);
   const audioRef = React.useRef(null);
-  const audioQueueRef = React.useRef([]);
   const autoPlayRef = React.useRef(false);
   const goNextRef = React.useRef(null);
   const [audioBlocked, setAudioBlocked] = React.useState(false);
 
   React.useEffect(() => { autoPlayRef.current = autoPlay; }, [autoPlay]);
+
+  const currentBead = beads.find(b => b.id === currentId);
+  const currentSteps = window.stepsForBead(currentBead);
+  const safeStepIdx = Math.min(stepIdx, Math.max(0, currentSteps.length - 1));
+  const currentStep = currentSteps[safeStepIdx];
+
+  // Áudio de um passo (um por slide)
+  const audioForStep = React.useCallback((step) => {
+    if (!step) return null;
+    if (step.kind === 'mystery') {
+      return selectedMystery ? `assets/myst/${selectedMystery}-${step.decade + 1}.mp3` : null;
+    }
+    if (step.kind === 'prayer') return step.audio || null;
+    return null;
+  }, [selectedMystery]);
 
   // Criar elemento de áudio uma única vez
   React.useEffect(() => {
@@ -42,16 +57,8 @@ function App() {
     a.preload = 'auto';
     a.volume = 0.75;
     const onEnded = () => {
-      // tocar próximo da fila, se houver
-      const q = audioQueueRef.current;
-      if (q.length > 0) {
-        const next = q.shift();
-        a.src = next;
-        a.currentTime = 0;
-        a.play().catch(()=>{});
-      } else if (autoPlayRef.current && goNextRef.current) {
-        // Fila esgotada E modo corrido ligado -> avançar
-        // pequena pausa pra respiração
+      if (autoPlayRef.current && goNextRef.current) {
+        // pequena pausa pra respiração antes do próximo slide
         setTimeout(() => {
           if (autoPlayRef.current && goNextRef.current) goNextRef.current();
         }, 900);
@@ -65,13 +72,11 @@ function App() {
     };
   }, []);
 
-  // Play uma sequência de áudios
-  const playSequence = React.useCallback((srcs) => {
+  const playSrc = React.useCallback((src) => {
     const a = audioRef.current;
-    if (!a || !srcs || !srcs.length) return;
-    audioQueueRef.current = srcs.slice(1);
+    if (!a || !src) return;
     try {
-      a.src = srcs[0];
+      a.src = src;
       a.currentTime = 0;
       const p = a.play();
       if (p && p.then) {
@@ -81,64 +86,41 @@ function App() {
     } catch(e){ setAudioBlocked(true); }
   }, []);
 
-  // Determinar sequência de áudios pra uma conta
-  const audioSequenceForBead = React.useCallback((bead, mysteryReady) => {
-    if (!bead) return [];
-    if (bead.type === 'cross') {
-      return ['assets/sinal-da-cruz.mp3', 'assets/oferecimento.mp3', 'assets/credo.mp3'];
-    }
-    if (bead.type === 'medal') {
-      // Glória + anúncio do 1º mistério (se já escolheu)
-      const seq = ['assets/gloria.mp3'];
-      if (mysteryReady && selectedMystery) {
-        seq.push(`assets/myst/${selectedMystery}-1.mp3`);
-      }
-      return seq;
-    }
-    if (bead.type === 'pater') {
-      // Pai-Nosso normal; anúncio do mistério já foi tocado antes
-      return ['assets/pai-nosso.mp3'];
-    }
-    if (bead.type === 'ave') {
-      const isLast = bead.indexInDecade === 10;
-      if (isLast) {
-        const seq = ['assets/ave-maria.mp3', 'assets/gloria.mp3', 'assets/oracao-de-fatima.mp3'];
-        // Anúncio do próximo mistério (2º..5º), se houver
-        if (bead.decade < 4 && selectedMystery) {
-          seq.push(`assets/myst/${selectedMystery}-${bead.decade + 2}.mp3`);
-        }
-        if (bead.decade === 4) seq.push('assets/salve-rainha.mp3');
-        return seq;
-      }
-      return ['assets/ave-maria.mp3'];
-    }
-    return [];
-  }, []);
-
-  // Tocar áudio conforme conta atual
+  // Tocar áudio conforme o passo atual
   React.useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
     if (!started || !aveAudioOn) {
-      audioQueueRef.current = [];
       try { a.pause(); } catch(e){}
       return;
     }
-    const cur = beads.find(b => b.id === currentId);
-    const seq = audioSequenceForBead(cur, mysteryReady);
-    if (seq.length) {
-      playSequence(seq);
-    } else {
-      audioQueueRef.current = [];
-      try { a.pause(); } catch(e){}
+    const src = audioForStep(currentStep);
+    if (src) playSrc(src);
+    else { try { a.pause(); } catch(e){} }
+  }, [currentId, safeStepIdx, aveAudioOn, started, mysteryReady, audioForStep, playSrc]);
+
+  // Modo fluido: passos sem áudio (ou com áudio desligado) avançam por tempo de leitura
+  React.useEffect(() => {
+    if (!autoPlay || !started || !currentStep) return;
+    if (currentStep.kind === 'medalChoice' && !mysteryReady) return; // aguarda a escolha dos mistérios
+    const src = audioForStep(currentStep);
+    if (src && aveAudioOn) return; // o fim do áudio cuida do avanço
+    let text = '';
+    if (currentStep.kind === 'prayer') text = window.PRAYERS[currentStep.key].text;
+    else if (currentStep.kind === 'mystery') {
+      const m = window.MYSTERIES[selectedMystery]?.list[currentStep.decade];
+      text = m ? m.title + m.reflection : '';
     }
-  }, [currentId, aveAudioOn, started, beads, mysteryReady, audioSequenceForBead, playSequence]);
+    const ms = Math.min(24000, Math.max(4000, text.length * 60));
+    const t = setTimeout(() => { if (goNextRef.current) goNextRef.current(); }, ms);
+    return () => clearTimeout(t);
+  }, [autoPlay, started, currentId, safeStepIdx, aveAudioOn, mysteryReady, selectedMystery, currentStep, audioForStep]);
 
   React.useEffect(() => {
     localStorage.setItem('terco-state', JSON.stringify({
-      currentId, selectedMystery, mysteryReady, material, nightMode, bellOn, count, aveAudioOn, showTweaks
+      currentId, stepIdx, selectedMystery, mysteryReady, material, nightMode, bellOn, count, aveAudioOn, showTweaks
     }));
-  }, [currentId, selectedMystery, mysteryReady, material, nightMode, bellOn, count, aveAudioOn, showTweaks]);
+  }, [currentId, stepIdx, selectedMystery, mysteryReady, material, nightMode, bellOn, count, aveAudioOn, showTweaks]);
 
   // Tweaks host integration — não anunciamos mais pro host (temos botão próprio "Ajustes")
   // Mantemos o listener caso o usuário ainda mande o evento, mas não sobrescreve a escolha local.
@@ -150,8 +132,6 @@ function App() {
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, []);
-
-  const currentBead = beads.find(b => b.id === currentId);
 
   const chainPath = React.useMemo(() => {
     if (!beads.length) return '';
@@ -196,13 +176,18 @@ function App() {
   }, [bellOn]);
 
   const goNext = () => {
+    const steps = window.stepsForBead(currentBead);
+    if (safeStepIdx < steps.length - 1) {
+      setStepIdx(safeStepIdx + 1);
+      return;
+    }
     const idx = beads.findIndex(b => b.id === currentId);
     if (idx < beads.length - 1) {
-      const nextBead = beads[idx + 1];
       if (currentBead && currentBead.type === 'ave' && currentBead.indexInDecade === 10) {
         playBell();
       }
-      setCurrentId(nextBead.id);
+      setCurrentId(beads[idx + 1].id);
+      setStepIdx(0);
     } else {
       // completou o terço
       setCount(c => c + 1);
@@ -213,12 +198,25 @@ function App() {
   };
   React.useEffect(() => { goNextRef.current = goNext; });
   const goPrev = () => {
+    if (safeStepIdx > 0) {
+      setStepIdx(safeStepIdx - 1);
+      return;
+    }
     const idx = beads.findIndex(b => b.id === currentId);
-    if (idx > 0) setCurrentId(beads[idx - 1].id);
+    if (idx > 0) {
+      const prevBead = beads[idx - 1];
+      setCurrentId(prevBead.id);
+      setStepIdx(Math.max(0, window.stepsForBead(prevBead).length - 1));
+    }
+  };
+  const goToBead = (id) => {
+    setCurrentId(id);
+    setStepIdx(0);
   };
   const restart = () => {
     if (confirm('Recomeçar o terço do início?')) {
       setCurrentId(0);
+      setStepIdx(0);
       setMysteryReady(false);
     }
   };
@@ -230,7 +228,7 @@ function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentId, beads, bellOn, currentBead]);
+  }, [currentId, stepIdx, beads, bellOn, currentBead]);
 
   if (!started) {
     return (
@@ -258,9 +256,9 @@ function App() {
           onClick={() => {
             const next = !aveAudioOn;
             setAveAudioOn(next);
-            if (next && currentBead && audioRef.current) {
-              const seq = audioSequenceForBead(currentBead, mysteryReady);
-              if (seq.length) playSequence(seq);
+            if (next && audioRef.current) {
+              const src = audioForStep(currentStep);
+              if (src) playSrc(src);
             }
           }}
           title={aveAudioOn ? 'Silenciar orações cantadas' : 'Ativar orações cantadas'}
@@ -288,11 +286,11 @@ function App() {
             const next = !autoPlay;
             setAutoPlay(next);
             if (next) {
-              // garante áudio ligado e inicia a sequência da conta atual
+              // garante áudio ligado e inicia a sequência do passo atual
               if (!aveAudioOn) setAveAudioOn(true);
-              if (currentBead && audioRef.current) {
-                const seq = audioSequenceForBead(currentBead, mysteryReady);
-                if (seq.length) playSequence(seq);
+              if (audioRef.current) {
+                const src = audioForStep(currentStep);
+                if (src) playSrc(src);
               }
             }
           }}
@@ -325,7 +323,7 @@ function App() {
         <window.RosaryCanvas
           beads={beads}
           currentId={currentId}
-          onBeadClick={setCurrentId}
+          onBeadClick={goToBead}
           chainPath={chainPath}
           material={material}
           nightMode={nightMode}
@@ -341,6 +339,7 @@ function App() {
         currentBead={currentBead}
         beads={beads}
         currentId={currentId}
+        stepIdx={safeStepIdx}
         onPrev={goPrev}
         onNext={goNext}
         onRestart={restart}

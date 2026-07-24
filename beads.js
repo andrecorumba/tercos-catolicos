@@ -7,7 +7,7 @@ window.buildBeads = function() {
   const cx = 500;
 
   // ---- Crucifixo (bem ao fundo) ----
-  beads.push({ id: 0, type: 'cross', x: cx, y: 1000, label: 'Sinal da Cruz + Credo' });
+  beads.push({ id: 0, type: 'cross', x: cx, y: 1000, label: 'Crucifixo' });
 
   // ---- Pendente (Credo→PN→3AM→Gloria→Medalha) reto, subindo ----
   // Ordem: 1 Pai-Nosso, 3 Ave-Marias (vão mostrar Glória ao passar a medalha)

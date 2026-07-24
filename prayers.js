@@ -31,7 +31,50 @@ window.PRAYERS = {
   ofertaInicial: {
     title: "Oferecimento",
     text: "Divino Jesus, eu vos ofereço este terço que vou rezar, contemplando os vossos mistérios. Dai-me, pela intercessão da Virgem Maria, as graças necessárias para bem meditá-los e o fruto que devo tirar deles. Amém."
+  },
+  infinitasGracas: {
+    title: "Agradecimento",
+    text: "Infinitas graças vos damos, Soberana Rainha, pelos benefícios que todos os dias recebemos de vossas mãos liberais. Dignai-vos, agora e para sempre, tomar-nos debaixo do vosso poderoso amparo e, para mais vos obrigar, vos saudamos com uma Salve Rainha."
   }
+};
+
+// Sequência de passos (um por slide) de cada conta.
+// Cada passo: { kind: 'prayer', key, audio } | { kind: 'mystery', decade } | { kind: 'medalChoice' }
+window.stepsForBead = function(bead) {
+  if (!bead) return [];
+  if (bead.type === 'cross') {
+    return [
+      { kind: 'prayer', key: 'sinalCruz', audio: 'assets/sinal-da-cruz.mp3' },
+      { kind: 'prayer', key: 'ofertaInicial', audio: 'assets/oferecimento.mp3' },
+      { kind: 'prayer', key: 'credo', audio: 'assets/credo.mp3' }
+    ];
+  }
+  if (bead.type === 'medal') {
+    return [
+      { kind: 'prayer', key: 'gloria', audio: 'assets/gloria.mp3' },
+      { kind: 'medalChoice' }
+    ];
+  }
+  if (bead.type === 'pater') {
+    const steps = [];
+    // Nas dezenas, o texto do mistério vem sozinho num slide antes do Pai-Nosso
+    if (typeof bead.decade === 'number') steps.push({ kind: 'mystery', decade: bead.decade });
+    steps.push({ kind: 'prayer', key: 'paiNosso', audio: 'assets/pai-nosso.mp3' });
+    return steps;
+  }
+  if (bead.type === 'ave') {
+    const steps = [{ kind: 'prayer', key: 'aveMaria', audio: 'assets/ave-maria.mp3' }];
+    if (bead.indexInDecade === 10) {
+      steps.push({ kind: 'prayer', key: 'gloria', audio: 'assets/gloria.mp3' });
+      steps.push({ kind: 'prayer', key: 'fatima', audio: 'assets/oracao-de-fatima.mp3' });
+      if (bead.decade === 4) {
+        steps.push({ kind: 'prayer', key: 'infinitasGracas', audio: null });
+        steps.push({ kind: 'prayer', key: 'salveRainha', audio: 'assets/salve-rainha.mp3' });
+      }
+    }
+    return steps;
+  }
+  return [];
 };
 
 window.MYSTERIES = {
