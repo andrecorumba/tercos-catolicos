@@ -236,7 +236,16 @@ function App() {
         <div className="start-cross">✝</div>
         <h1 className="start-title">Santo Terço</h1>
         <p className="start-sub">Contemple os mistérios clicando nas contas</p>
-        <button className="start-btn" onClick={() => setStarted(true)}>
+        <button
+          className="start-btn"
+          onClick={() => {
+            // Sempre começar do início, independente de onde parou
+            setCurrentId(0);
+            setStepIdx(0);
+            setMysteryReady(false);
+            setStarted(true);
+          }}
+        >
           Iniciar Terço
         </button>
         <p className="start-day">{dayInfo.label} · {window.MYSTERIES[dayInfo.mystery].name}</p>
